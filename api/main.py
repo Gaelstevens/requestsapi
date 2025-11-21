@@ -12,6 +12,8 @@ from database import get_db
 from models import UserRegister, UserLogin, RequestSubmit
 from auth import hash_password, verify_password
 
+from database import get_db, execute_query, fetch_one, fetch_all
+
 app = FastAPI(title="Gestion des Requêtes Universitaires")
 
 # Configuration des templates
@@ -66,7 +68,7 @@ async def register_form(request: Request):
 
 
 
-from database import get_db, execute_query, fetch_one, fetch_all
+
 
 # ... le reste du code reste identique jusqu'aux routes ...
 
