@@ -25,6 +25,16 @@ from threading import Lock
 
 # Lock pour éviter les problèmes de concurrence
 db_lock = Lock()
+"""
+def get_db_path():
+    
+    if 'VERCEL' in os.environ:
+        # Sur Vercel, on utilise /tmp pour l'écriture
+        return '/tmp/university_requests.db'
+    else:
+        return 'university_requests.db'
+"""
+
 
 def get_db_path():
     """Obtenir le chemin de la base de données"""
@@ -33,6 +43,11 @@ def get_db_path():
         return '/tmp/university_requests.db'
     else:
         return 'university_requests.db'
+
+
+
+
+
 
 def init_db():
     """Initialiser la base de données avec les tables"""
