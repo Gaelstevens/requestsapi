@@ -12,7 +12,7 @@ from models import UserRegister, UserLogin, RequestSubmit
 from auth import hash_password, verify_password
 
 app = FastAPI(title="Gestion des Requêtes Universitaires")
-
+#bim
 # Configuration des templates
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
