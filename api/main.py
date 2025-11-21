@@ -412,10 +412,10 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
         conn = await get_db()
         try:
             await conn.execute(
-                """INSERT INTO requests 
+                """"""INSERT INTO requests 
                 (user_id, all_name, matricule, cycle, level, nom_code_ue, 
                  note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)""",
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)""" """,
                 current_user['user_id'], request_data.all_name, request_data.matricule,
                 request_data.cycle, request_data.level, request_data.nom_code_ue,
                 request_data.note_exam, request_data.note_cc, request_data.note_tp,
