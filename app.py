@@ -21,15 +21,18 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 SECRET_KEY = "ma-cle-secrete-pour-les-cookies-2024"
 
 def sign_data(data: str) -> str:
+    """Signer les données du cookie"""
     return hmac.new(SECRET_KEY.encode(), data.encode(), hashlib.sha256).hexdigest()
 
 def create_user_cookie(user_data: dict) -> str:
+    """Créer un cookie utilisateur signé"""
     data_json = json.dumps(user_data)
     data_b64 = base64.b64encode(data_json.encode()).decode()
     signature = sign_data(data_b64)
     return f"{data_b64}.{signature}"
 
 def verify_user_cookie(cookie_data: str) -> dict:
+    """Vérifier et décoder le cookie utilisateur"""
     try:
         if not cookie_data:
             return None
@@ -41,6 +44,7 @@ def verify_user_cookie(cookie_data: str) -> dict:
     except:
         return None
 
+# Dépendance pour vérifier l'utilisateur connecté
 def get_current_user(user_data: str = Cookie(None)):
     if not user_data:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
@@ -51,16 +55,7 @@ def get_current_user(user_data: str = Cookie(None)):
     
     return user
 
-# Route de test
-@app.get("/test")
-async def test():
-    try:
-        conn = await get_db()
-        await conn.close()
-        return {"status": "DB connection OK"}
-    except Exception as e:
-        return {"status": "DB error", "error": str(e)}
-
+# Routes
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("base.html", {"request": request})
@@ -220,7 +215,7 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
             "error": str(e)
         })
 
-@app.get("/my-requests")
+@app.get("/my-requests", response_class=HTMLResponse)
 async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
     conn = await get_db()
     try:
@@ -231,7 +226,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
     finally:
         await conn.close()
     
-    return templates.TemplateResponse("my_requests.html", {
+    return templates.TemplateResponse("my-requests.html", {
         "request": request,
         "user": current_user,
         "requests": requests
@@ -242,3 +237,14 @@ async def logout():
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("user_data")
     return response
+
+# Route de test pour la base de données
+@app.get("/test-db")
+async def test_db():
+    try:
+        conn = await get_db()
+        version = await conn.fetchval("SELECT version()")
+        await conn.close()
+        return {"status": "success", "database_version": version}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
