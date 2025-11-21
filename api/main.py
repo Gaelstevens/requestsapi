@@ -69,9 +69,6 @@ async def register_form(request: Request):
 
 
 
-
-# ... le reste du code reste identique jusqu'aux routes ...
-
 @app.post("/register")
 async def register_user(request: Request):
     form_data = await request.form()
@@ -89,7 +86,7 @@ async def register_user(request: Request):
         # Vérifier si l'email ou matricule existe déjà
         user_exists = await fetch_one(
             "SELECT user_id FROM users WHERE email = ? OR matricule = ?",
-            user_data.email, user_data.matricule
+            (user_data.email, user_data.matricule)
         )
         
         if user_exists:
@@ -110,6 +107,10 @@ async def register_user(request: Request):
             "error": str(e)
         })
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
 @app.post("/login")
 async def login_user(request: Request):
     form_data = await request.form()
@@ -123,7 +124,7 @@ async def login_user(request: Request):
         # Chercher l'utilisateur par email ou matricule
         user = await fetch_one(
             "SELECT user_id, matricule, name, last_name, email, password FROM users WHERE email = ? OR matricule = ?",
-            login_data.login, login_data.login
+            (login_data.login, login_data.login)
         )
         
         if not user or not verify_password(login_data.password, user['password']):
@@ -150,24 +151,46 @@ async def login_user(request: Request):
             "error": str(e)
         })
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "user": current_user
+    })
+
+@app.get("/submit-request", response_class=HTMLResponse)
+async def submit_request_form(request: Request, current_user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("submit_request.html", {
+        "request": request,
+        "user": current_user
+    })
+
 @app.post("/submit-request")
 async def submit_request(request: Request, current_user: dict = Depends(get_current_user)):
     form_data = await request.form()
     
     try:
+        # Convertir les valeurs booléennes (les checkboxes retournent "on" si cochées)
+        note_exam = form_data.get("note_exam") == "on"
+        note_cc = form_data.get("note_cc") == "on"
+        note_tp = form_data.get("note_tp") == "on"
+        note_tpe = form_data.get("note_tpe") == "on"
+        autre = form_data.get("autre") == "on"
+        just_p = form_data.get("just_p") == "on"
+        
         request_data = RequestSubmit(
             all_name=f"{current_user['name']} {current_user['last_name']}",
             matricule=current_user['matricule'],
             cycle=form_data.get("cycle"),
             level=int(form_data.get("level")),
             nom_code_ue=form_data.get("nom_code_ue"),
-            note_exam=bool(form_data.get("note_exam")),
-            note_cc=bool(form_data.get("note_cc")),
-            note_tp=bool(form_data.get("note_tp")),
-            note_tpe=bool(form_data.get("note_tpe")),
-            autre=bool(form_data.get("autre")),
+            note_exam=note_exam,
+            note_cc=note_cc,
+            note_tp=note_tp,
+            note_tpe=note_tpe,
+            autre=autre,
             comment=form_data.get("comment"),
-            just_p=bool(form_data.get("just_p"))
+            just_p=just_p
         )
         
         await execute_query(
@@ -177,9 +200,13 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (current_user['user_id'], request_data.all_name, request_data.matricule,
              request_data.cycle, request_data.level, request_data.nom_code_ue,
-             request_data.note_exam, request_data.note_cc, request_data.note_tp,
-             request_data.note_tpe, request_data.autre, request_data.comment,
-             request_data.just_p)
+             1 if request_data.note_exam else 0, 
+             1 if request_data.note_cc else 0,
+             1 if request_data.note_tp else 0,
+             1 if request_data.note_tpe else 0,
+             1 if request_data.autre else 0, 
+             request_data.comment,
+             1 if request_data.just_p else 0)
         )
             
         return RedirectResponse(url="/my-requests", status_code=303)
@@ -204,6 +231,12 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
         "requests": requests
     })
 
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("user_data")
+    return response
+
 # Route de test pour la base de données
 @app.get("/test-db")
 async def test_db():
@@ -212,6 +245,29 @@ async def test_db():
         return {"status": "success", "database_version": result['version']}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# Route pour vérifier l'état de la base de données
+@app.get("/db-status")
+async def db_status():
+    try:
+        # Vérifier si les tables existent
+        users_count = await fetch_one("SELECT COUNT(*) as count FROM users")
+        requests_count = await fetch_one("SELECT COUNT(*) as count FROM requests")
+        
+        return {
+            "status": "success",
+            "database_path": get_db_path(),
+            "users_table": users_count['count'] if users_count else 0,
+            "requests_table": requests_count['count'] if requests_count else 0
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+
+
+
+
 
 
 
