@@ -61,6 +61,168 @@ async def home(request: Request):
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
+
+
+
+
+
+from database import get_db, execute_query, fetch_one, fetch_all
+
+# ... le reste du code reste identique jusqu'aux routes ...
+
+@app.post("/register")
+async def register_user(request: Request):
+    form_data = await request.form()
+    
+    try:
+        user_data = UserRegister(
+            matricule=form_data.get("matricule"),
+            name=form_data.get("name"),
+            last_name=form_data.get("last_name"),
+            email=form_data.get("email"),
+            phone=form_data.get("phone"),
+            password=form_data.get("password")
+        )
+        
+        # Vérifier si l'email ou matricule existe déjà
+        user_exists = await fetch_one(
+            "SELECT user_id FROM users WHERE email = ? OR matricule = ?",
+            user_data.email, user_data.matricule
+        )
+        
+        if user_exists:
+            raise HTTPException(status_code=400, detail="Email ou matricule déjà utilisé")
+        
+        # Créer l'utilisateur
+        await execute_query(
+            "INSERT INTO users (matricule, name, last_name, email, phone, password) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_data.matricule, user_data.name, user_data.last_name, 
+             user_data.email, user_data.phone, hash_password(user_data.password))
+        )
+            
+        return RedirectResponse(url="/login", status_code=303)
+        
+    except Exception as e:
+        return templates.TemplateResponse("register.html", {
+            "request": request, 
+            "error": str(e)
+        })
+
+@app.post("/login")
+async def login_user(request: Request):
+    form_data = await request.form()
+    
+    try:
+        login_data = UserLogin(
+            login=form_data.get("login"),
+            password=form_data.get("password")
+        )
+        
+        # Chercher l'utilisateur par email ou matricule
+        user = await fetch_one(
+            "SELECT user_id, matricule, name, last_name, email, password FROM users WHERE email = ? OR matricule = ?",
+            login_data.login, login_data.login
+        )
+        
+        if not user or not verify_password(login_data.password, user['password']):
+            raise HTTPException(status_code=400, detail="Identifiants incorrects")
+        
+        # Créer les données utilisateur pour le cookie
+        user_session = {
+            'user_id': user['user_id'],
+            'matricule': user['matricule'],
+            'name': user['name'],
+            'last_name': user['last_name'],
+            'email': user['email']
+        }
+        
+        user_cookie = create_user_cookie(user_session)
+        
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(key="user_data", value=user_cookie, httponly=True, max_age=24*60*60)
+        return response
+            
+    except Exception as e:
+        return templates.TemplateResponse("login.html", {
+            "request": request, 
+            "error": str(e)
+        })
+
+@app.post("/submit-request")
+async def submit_request(request: Request, current_user: dict = Depends(get_current_user)):
+    form_data = await request.form()
+    
+    try:
+        request_data = RequestSubmit(
+            all_name=f"{current_user['name']} {current_user['last_name']}",
+            matricule=current_user['matricule'],
+            cycle=form_data.get("cycle"),
+            level=int(form_data.get("level")),
+            nom_code_ue=form_data.get("nom_code_ue"),
+            note_exam=bool(form_data.get("note_exam")),
+            note_cc=bool(form_data.get("note_cc")),
+            note_tp=bool(form_data.get("note_tp")),
+            note_tpe=bool(form_data.get("note_tpe")),
+            autre=bool(form_data.get("autre")),
+            comment=form_data.get("comment"),
+            just_p=bool(form_data.get("just_p"))
+        )
+        
+        await execute_query(
+            """INSERT INTO requests 
+            (user_id, all_name, matricule, cycle, level, nom_code_ue, 
+             note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (current_user['user_id'], request_data.all_name, request_data.matricule,
+             request_data.cycle, request_data.level, request_data.nom_code_ue,
+             request_data.note_exam, request_data.note_cc, request_data.note_tp,
+             request_data.note_tpe, request_data.autre, request_data.comment,
+             request_data.just_p)
+        )
+            
+        return RedirectResponse(url="/my-requests", status_code=303)
+        
+    except Exception as e:
+        return templates.TemplateResponse("submit_request.html", {
+            "request": request,
+            "user": current_user,
+            "error": str(e)
+        })
+
+@app.get("/my-requests", response_class=HTMLResponse)
+async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
+    requests = await fetch_all(
+        "SELECT * FROM requests WHERE user_id = ? ORDER BY created_at DESC",
+        (current_user['user_id'],)
+    )
+    
+    return templates.TemplateResponse("my-requests.html", {
+        "request": request,
+        "user": current_user,
+        "requests": requests
+    })
+
+# Route de test pour la base de données
+@app.get("/test-db")
+async def test_db():
+    try:
+        result = await fetch_one("SELECT sqlite_version() as version")
+        return {"status": "success", "database_version": result['version']}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+
+
+
+
+
+
+
+
+
+
+"""
 @app.post("/register")
 async def register_user(request: Request):
     form_data = await request.form()
@@ -246,3 +408,5 @@ async def test_db():
         return {"status": "success", "version": version}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+"""
