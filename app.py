@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import pymysql
-from datetime import datetime
+import json
+import base64
+import hmac
+import hashlib
 
 from database import get_db
 from models import UserRegister, UserLogin, RequestSubmit
@@ -15,15 +18,43 @@ app = FastAPI(title="Gestion des Requêtes Universitaires")
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Session simulation (pour un vrai projet, utilisez JWT ou sessions sécurisées)
-user_sessions = {}
+# Clé secrète pour signer les cookies (à changer en production)
+SECRET_KEY = "ma-cle-secrete-pour-les-cookies-2024"
+
+def sign_data(data: str) -> str:
+    """Signer les données du cookie"""
+    return hmac.new(SECRET_KEY.encode(), data.encode(), hashlib.sha256).hexdigest()
+
+def create_user_cookie(user_data: dict) -> str:
+    """Créer un cookie utilisateur signé"""
+    data_json = json.dumps(user_data)
+    data_b64 = base64.b64encode(data_json.encode()).decode()
+    signature = sign_data(data_b64)
+    return f"{data_b64}.{signature}"
+
+def verify_user_cookie(cookie_data: str) -> dict:
+    """Vérifier et décoder le cookie utilisateur"""
+    try:
+        if not cookie_data:
+            return None
+        data_b64, signature = cookie_data.split(".")
+        if sign_data(data_b64) != signature:
+            return None
+        data_json = base64.b64decode(data_b64).decode()
+        return json.loads(data_json)
+    except:
+        return None
 
 # Dépendance pour vérifier l'utilisateur connecté
-def get_current_user(request: Request):
-    user_id = request.cookies.get("user_id")
-    if not user_id or user_id not in user_sessions:
+def get_current_user(user_data: str = Cookie(None)):
+    if not user_data:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
-    return user_sessions[user_id]
+    
+    user = verify_user_cookie(user_data)
+    if not user:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    
+    return user
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
@@ -80,7 +111,7 @@ async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login_user(request: Request, response: RedirectResponse):
+async def login_user(request: Request):
     form_data = await request.form()
     
     try:
@@ -102,9 +133,8 @@ async def login_user(request: Request, response: RedirectResponse):
                 if not user or not verify_password(login_data.password, user['password']):
                     raise HTTPException(status_code=400, detail="Identifiants incorrects")
                 
-                # Créer session
-                session_id = str(user['user_id'])
-                user_sessions[session_id] = {
+                # Créer les données utilisateur pour le cookie
+                user_session = {
                     'user_id': user['user_id'],
                     'matricule': user['matricule'],
                     'name': user['name'],
@@ -112,8 +142,16 @@ async def login_user(request: Request, response: RedirectResponse):
                     'email': user['email']
                 }
                 
+                # Créer le cookie signé
+                user_cookie = create_user_cookie(user_session)
+                
                 response = RedirectResponse(url="/dashboard", status_code=303)
-                response.set_cookie(key="user_id", value=session_id)
+                response.set_cookie(
+                    key="user_data", 
+                    value=user_cookie,
+                    httponly=True,
+                    max_age=24*60*60  # 24 heures
+                )
                 return response
                 
     except Exception as e:
@@ -197,15 +235,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
     })
 
 @app.get("/logout")
-async def logout(request: Request):
-    user_id = request.cookies.get("user_id")
-    if user_id in user_sessions:
-        del user_sessions[user_id]
-    
+async def logout():
     response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie("user_id")
+    response.delete_cookie("user_data")
     return response
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
