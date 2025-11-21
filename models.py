@@ -1,4 +1,4 @@
-# models.py - NOUVEAU FICHIER PROPRE
+# models.py - Version assouplie
 from pydantic import BaseModel, validator
 import re
 from typing import Optional
@@ -27,10 +27,11 @@ class UserRegister(BaseModel):
 
     @validator('name', 'last_name')
     def validate_name(cls, v):
-        if len(v) > 255:
+        if len(v) > 100:
             raise ValueError('Le nom ne peut pas dépasser 100 caractères')
-        if not re.match(r'^[a-zA-Z\s\-]+$', v):
-            raise ValueError('Le nom ne peut contenir que des lettres, espaces et tirets')
+        # ✅ AUTORISER les accents, apostrophes et caractères internationaux
+        if not re.match(r'^[a-zA-ZÀ-ÿ\s\-\']+$', v):
+            raise ValueError('Le nom ne peut contenir que des lettres (avec accents), espaces, tirets et apostrophes')
         return v
 
 class UserLogin(BaseModel):
@@ -53,7 +54,7 @@ class RequestSubmit(BaseModel):
 
     @validator('all_name')
     def validate_all_name(cls, v):
-        if len(v) > 255:
+        if len(v) > 200:
             raise ValueError('Le nom complet ne peut pas dépasser 200 caractères')
         return v
 
