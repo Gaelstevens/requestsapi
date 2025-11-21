@@ -1,8 +1,9 @@
+# main.py pour Supabase
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import pymysql
+import psycopg2
 import json
 import base64
 import hmac
@@ -18,7 +19,7 @@ app = FastAPI(title="Gestion des Requêtes Universitaires")
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Clé secrète pour signer les cookies (à changer en production)
+# Clé secrète pour signer les cookies
 SECRET_KEY = "ma-cle-secrete-pour-les-cookies-2024"
 
 def sign_data(data: str) -> str:
@@ -150,7 +151,7 @@ async def login_user(request: Request):
                     key="user_data", 
                     value=user_cookie,
                     httponly=True,
-                    max_age=24*60*60  # 24 heures
+                    max_age=24*60*60
                 )
                 return response
                 
