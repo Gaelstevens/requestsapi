@@ -44,13 +44,17 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    """Hasher un mot de passe en le tronquant à 72 caractères si nécessaire"""
-    if len(password) > 72:
-        password = password[:72]
+    """Hasher un mot de passe en le tronquant à 72 bytes si nécessaire"""
+    pw_bytes = password.encode("utf-8")
+    if len(pw_bytes) > 72:
+        pw_bytes = pw_bytes[:72]
+        password = pw_bytes.decode("utf-8", errors="ignore")  # Retirer chars coupés
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Vérifier un mot de passe"""
-    if len(plain_password) > 72:
-        plain_password = plain_password[:72]
+    pw_bytes = plain_password.encode("utf-8")
+    if len(pw_bytes) > 72:
+        pw_bytes = pw_bytes[:72]
+        plain_password = pw_bytes.decode("utf-8", errors="ignore")
     return pwd_context.verify(plain_password, hashed_password)
+
