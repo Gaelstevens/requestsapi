@@ -12,6 +12,6 @@ async def get_db():
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME"),
-        port=5432,
+        port=6543,
         ssl=ssl_context
     )
