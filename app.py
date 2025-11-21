@@ -1,9 +1,7 @@
-# main.py pour Supabase
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import psycopg2
 import json
 import base64
 import hmac
@@ -23,18 +21,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 SECRET_KEY = "ma-cle-secrete-pour-les-cookies-2024"
 
 def sign_data(data: str) -> str:
-    """Signer les données du cookie"""
     return hmac.new(SECRET_KEY.encode(), data.encode(), hashlib.sha256).hexdigest()
 
 def create_user_cookie(user_data: dict) -> str:
-    """Créer un cookie utilisateur signé"""
     data_json = json.dumps(user_data)
     data_b64 = base64.b64encode(data_json.encode()).decode()
     signature = sign_data(data_b64)
     return f"{data_b64}.{signature}"
 
 def verify_user_cookie(cookie_data: str) -> dict:
-    """Vérifier et décoder le cookie utilisateur"""
     try:
         if not cookie_data:
             return None
@@ -46,7 +41,6 @@ def verify_user_cookie(cookie_data: str) -> dict:
     except:
         return None
 
-# Dépendance pour vérifier l'utilisateur connecté
 def get_current_user(user_data: str = Cookie(None)):
     if not user_data:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
@@ -57,17 +51,23 @@ def get_current_user(user_data: str = Cookie(None)):
     
     return user
 
-# Routes
+# Route de test
+@app.get("/test")
+async def test():
+    try:
+        conn = await get_db()
+        await conn.close()
+        return {"status": "DB connection OK"}
+    except Exception as e:
+        return {"status": "DB error", "error": str(e)}
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("base.html", {"request": request})
 
-
-
-
-
-
-
+@app.get("/register", response_class=HTMLResponse)
+async def register_form(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/register")
 async def register_user(request: Request):
@@ -111,6 +111,10 @@ async def register_user(request: Request):
             "request": request, 
             "error": str(e)
         })
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
 async def login_user(request: Request):
@@ -156,6 +160,20 @@ async def login_user(request: Request):
             "request": request, 
             "error": str(e)
         })
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "user": current_user
+    })
+
+@app.get("/submit-request", response_class=HTMLResponse)
+async def submit_request_form(request: Request, current_user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("submit_request.html", {
+        "request": request,
+        "user": current_user
+    })
 
 @app.post("/submit-request")
 async def submit_request(request: Request, current_user: dict = Depends(get_current_user)):
@@ -218,22 +236,6 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
         "user": current_user,
         "requests": requests
     })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @app.get("/logout")
 async def logout():
