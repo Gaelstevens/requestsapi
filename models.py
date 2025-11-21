@@ -1,7 +1,6 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field
 import re
 from typing import Optional
-
 
 class UserRegister(BaseModel):
     matricule: str
@@ -18,21 +17,6 @@ class UserRegister(BaseModel):
         if len(v) > 72:
             raise ValueError('Le mot de passe ne peut pas dépasser 72 caractères')
         return v
-    
-    # ... tes autres validateurs ...
-
-
-
-
-
-"""class UserRegister(BaseModel):
-    matricule: str
-    name: str
-    last_name: str
-    email: str
-    phone: str
-    password: str
-""" 
 
     @validator('matricule')
     def validate_matricule(cls, v):
@@ -45,13 +29,13 @@ class UserRegister(BaseModel):
     @validator('phone')
     def validate_phone(cls, v):
         if not v.isdigit() or len(v) != 9:
-            raise ValueError('Le telephone doit contenir 9 chiffres')
+            raise ValueError('Le téléphone doit contenir 9 chiffres')
         return v
 
     @validator('name', 'last_name')
     def validate_name(cls, v):
         if len(v) > 255:
-            raise ValueError('Le nom ne peut pas depasser 255 caracteres')
+            raise ValueError('Le nom ne peut pas dépasser 255 caractères')
         if not re.match(r'^[a-zA-ZÀ-ÿ\s\-\']+$', v):
             raise ValueError('Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes')
         return v
@@ -77,25 +61,25 @@ class RequestSubmit(BaseModel):
     @validator('all_name')
     def validate_all_name(cls, v):
         if len(v) > 255:
-            raise ValueError('Le nom complet ne peut pas depasser 255 caracteres')
+            raise ValueError('Le nom complet ne peut pas dépasser 255 caractères')
         return v
 
     @validator('matricule')
     def validate_matricule(cls, v):
         if len(v) > 15:
-            raise ValueError('Le matricule ne peut pas depasser 15 caracteres')
+            raise ValueError('Le matricule ne peut pas dépasser 15 caractères')
         return v
 
     @validator('cycle')
     def validate_cycle(cls, v):
         if len(v) > 50:
-            raise ValueError('Le cycle ne peut pas depasser 50 caracteres')
+            raise ValueError('Le cycle ne peut pas dépasser 50 caractères')
         return v
 
     @validator('level')
     def validate_level(cls, v):
         if not 0 <= v <= 32767:
-            raise ValueError('Le niveau doit etre entre 0 et 32767')
+            raise ValueError('Le niveau doit être entre 0 et 32767')
         return v
 
     @validator('nom_code_ue')
@@ -107,5 +91,5 @@ class RequestSubmit(BaseModel):
     @validator('comment')
     def validate_comment(cls, v):
         if v and len(v) > 5000:
-            raise ValueError('Le commentaire ne peut pas depasser 5000 caracteres')
+            raise ValueError('Le commentaire ne peut pas dépasser 5000 caractères')
         return v
