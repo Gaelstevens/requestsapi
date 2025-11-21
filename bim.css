@@ -1,0 +1,17 @@
+#include <stdio.h>
+
+void lt_kuekeu(const char *format, void *variable) {
+    if (format[0] == '%' && format[1] == 'd') {
+        int *int_ptr = (int *)variable;
+        fscanf(stdin, "%d", int_ptr);
+    }
+    // Vous pouvez étendre cette fonction pour gérer d'autres spécificateurs de format
+}
+
+int main() {
+    int number;
+    printf("Entrez un nombre entier : ");
+    lire("%d", &number);
+    printf("Vous avez entré : %d\n", number);
+    return 0;
+}
