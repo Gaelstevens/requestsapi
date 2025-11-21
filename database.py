@@ -19,7 +19,7 @@ def get_db():
         yield conn
     finally:
         conn.close() 
-"""
+
 
 # database.py - Version asyncpg
 import asyncpg
@@ -42,3 +42,30 @@ async def get_db():
         yield conn
     finally:
         await conn.close()
+
+"""
+
+
+
+# database.py - Version robuste
+import asyncpg
+import os
+
+async def get_db_connection():
+    """Établit une connexion à la base de données"""
+    try:
+        conn = await asyncpg.connect(
+            host=os.getenv('DB_HOST'),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME'),
+            port=5432,
+            timeout=30
+        )
+        return conn
+    except Exception as e:
+        print(f"Erreur de connexion à la base: {e}")
+        raise
+
+# Alias pour compatibilité
+get_db = get_db_connection
