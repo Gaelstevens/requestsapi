@@ -7,12 +7,12 @@ import base64
 import hmac
 import hashlib
 
-from database import get_db
+from database import execute_query, fetch_one, fetch_all
 from models import UserRegister, UserLogin, RequestSubmit
 from auth import hash_password, verify_password
 
 app = FastAPI(title="Gestion des Requêtes Universitaires")
-
+#bim
 # Configuration des templates
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -78,27 +78,22 @@ async def register_user(request: Request):
             password=form_data.get("password")
         )
         
-        conn = await get_db()
-        try:
-            # Vérifier si l'email ou matricule existe déjà
-            user_exists = await conn.fetchrow(
-                "SELECT user_id FROM users WHERE email = $1 OR matricule = $2",
-                user_data.email, user_data.matricule
-            )
+        # Vérifier si l'email ou matricule existe déjà
+        user_exists = await fetch_one(
+            "SELECT user_id FROM users WHERE email = ? OR matricule = ?",
+            (user_data.email, user_data.matricule)
+        )
+        
+        if user_exists:
+            raise HTTPException(status_code=400, detail="Email ou matricule déjà utilisé")
+        
+        # Créer l'utilisateur
+        await execute_query(
+            "INSERT INTO users (matricule, name, last_name, email, phone, password) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_data.matricule, user_data.name, user_data.last_name, 
+             user_data.email, user_data.phone, hash_password(user_data.password))
+        )
             
-            if user_exists:
-                raise HTTPException(status_code=400, detail="Email ou matricule déjà utilisé")
-            
-            # Créer l'utilisateur
-            await conn.execute(
-                "INSERT INTO users (matricule, name, last_name, email, phone, password) VALUES ($1, $2, $3, $4, $5, $6)",
-                user_data.matricule, user_data.name, user_data.last_name, 
-                user_data.email, user_data.phone, hash_password(user_data.password)
-            )
-                
-        finally:
-            await conn.close()
-                
         return RedirectResponse(url="/login", status_code=303)
         
     except Exception as e:
@@ -121,35 +116,30 @@ async def login_user(request: Request):
             password=form_data.get("password")
         )
         
-        conn = await get_db()
-        try:
-            # Chercher l'utilisateur par email ou matricule
-            user = await conn.fetchrow(
-                "SELECT user_id, matricule, name, last_name, email, password FROM users WHERE email = $1 OR matricule = $2",
-                login_data.login, login_data.login
-            )
+        # Chercher l'utilisateur par email ou matricule
+        user = await fetch_one(
+            "SELECT user_id, matricule, name, last_name, email, password FROM users WHERE email = ? OR matricule = ?",
+            (login_data.login, login_data.login)
+        )
+        
+        if not user or not verify_password(login_data.password, user['password']):
+            raise HTTPException(status_code=400, detail="Identifiants incorrects")
+        
+        # Créer les données utilisateur pour le cookie
+        user_session = {
+            'user_id': user['user_id'],
+            'matricule': user['matricule'],
+            'name': user['name'],
+            'last_name': user['last_name'],
+            'email': user['email']
+        }
+        
+        user_cookie = create_user_cookie(user_session)
+        
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(key="user_data", value=user_cookie, httponly=True, max_age=24*60*60)
+        return response
             
-            if not user or not verify_password(login_data.password, user['password']):
-                raise HTTPException(status_code=400, detail="Identifiants incorrects")
-            
-            # Créer les données utilisateur pour le cookie
-            user_session = {
-                'user_id': user['user_id'],
-                'matricule': user['matricule'],
-                'name': user['name'],
-                'last_name': user['last_name'],
-                'email': user['email']
-            }
-            
-            user_cookie = create_user_cookie(user_session)
-            
-            response = RedirectResponse(url="/dashboard", status_code=303)
-            response.set_cookie(key="user_data", value=user_cookie, httponly=True, max_age=24*60*60)
-            return response
-            
-        finally:
-            await conn.close()
-                
     except Exception as e:
         return templates.TemplateResponse("login.html", {
             "request": request, 
@@ -175,37 +165,45 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
     form_data = await request.form()
     
     try:
+        # Convertir les valeurs booléennes (les checkboxes retournent "on" si cochées)
+        note_exam = form_data.get("note_exam") == "on"
+        note_cc = form_data.get("note_cc") == "on"
+        note_tp = form_data.get("note_tp") == "on"
+        note_tpe = form_data.get("note_tpe") == "on"
+        autre = form_data.get("autre") == "on"
+        just_p = form_data.get("just_p") == "on"
+        
         request_data = RequestSubmit(
             all_name=f"{current_user['name']} {current_user['last_name']}",
             matricule=current_user['matricule'],
             cycle=form_data.get("cycle"),
             level=int(form_data.get("level")),
             nom_code_ue=form_data.get("nom_code_ue"),
-            note_exam=bool(form_data.get("note_exam")),
-            note_cc=bool(form_data.get("note_cc")),
-            note_tp=bool(form_data.get("note_tp")),
-            note_tpe=bool(form_data.get("note_tpe")),
-            autre=bool(form_data.get("autre")),
+            note_exam=note_exam,
+            note_cc=note_cc,
+            note_tp=note_tp,
+            note_tpe=note_tpe,
+            autre=autre,
             comment=form_data.get("comment"),
-            just_p=bool(form_data.get("just_p"))
+            just_p=just_p
         )
         
-        conn = await get_db()
-        try:
-            await conn.execute(
-                """INSERT INTO requests 
-                (user_id, all_name, matricule, cycle, level, nom_code_ue, 
-                 note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)""",
-                current_user['user_id'], request_data.all_name, request_data.matricule,
-                request_data.cycle, request_data.level, request_data.nom_code_ue,
-                request_data.note_exam, request_data.note_cc, request_data.note_tp,
-                request_data.note_tpe, request_data.autre, request_data.comment,
-                request_data.just_p
-            )
-        finally:
-            await conn.close()
-                
+        await execute_query(
+            """INSERT INTO requests 
+            (user_id, all_name, matricule, cycle, level, nom_code_ue, 
+             note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (current_user['user_id'], request_data.all_name, request_data.matricule,
+             request_data.cycle, request_data.level, request_data.nom_code_ue,
+             1 if request_data.note_exam else 0, 
+             1 if request_data.note_cc else 0,
+             1 if request_data.note_tp else 0,
+             1 if request_data.note_tpe else 0,
+             1 if request_data.autre else 0, 
+             request_data.comment,
+             1 if request_data.just_p else 0)
+        )
+            
         return RedirectResponse(url="/my-requests", status_code=303)
         
     except Exception as e:
@@ -217,14 +215,10 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
 
 @app.get("/my-requests", response_class=HTMLResponse)
 async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
-    conn = await get_db()
-    try:
-        requests = await conn.fetch(
-            "SELECT * FROM requests WHERE user_id = $1 ORDER BY created_at DESC",
-            current_user['user_id']
-        )
-    finally:
-        await conn.close()
+    requests = await fetch_all(
+        "SELECT * FROM requests WHERE user_id = ? ORDER BY created_at DESC",
+        (current_user['user_id'],)
+    )
     
     return templates.TemplateResponse("my-requests.html", {
         "request": request,
@@ -242,9 +236,24 @@ async def logout():
 @app.get("/test-db")
 async def test_db():
     try:
-        conn = await get_db()
-        version = await conn.fetchval("SELECT version()")
-        await conn.close()
-        return {"status": "success", "database_version": version}
+        result = await fetch_one("SELECT sqlite_version() as version")
+        return {"status": "success", "database_version": result['version']}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# Route pour vérifier l'état de la base de données
+@app.get("/db-status")
+async def db_status():
+    try:
+        # Vérifier si les tables existent
+        users_count = await fetch_one("SELECT COUNT(*) as count FROM users")
+        requests_count = await fetch_one("SELECT COUNT(*) as count FROM requests")
+        
+        return {
+            "status": "success",
+            "database_path": get_db_path(),
+            "users_table": users_count['count'] if users_count else 0,
+            "requests_table": requests_count['count'] if requests_count else 0
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
