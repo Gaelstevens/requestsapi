@@ -8,22 +8,12 @@ class UserRegister(BaseModel):
     last_name: str
     email: str
     phone: str
-    password: str = Field(..., min_length=6, max_length=72)  # Minimum 6 caractères
+    password: str
 
   
 
 
-    @validator('password')
-    def validate_password(cls, v):
-        if len(v.encode("utf-8")) > 72:
-            raise ValueError("Le mot de passe ne doit pas dépasser 72 octets (caractères UTF-8 compris)")
-        if len(v) < 6:
-            raise ValueError("Le mot de passe doit contenir au moins 6 caractères")
-        return v
-
-
-
-
+ 
 
     @validator('matricule')
     def validate_matricule(cls, v):
