@@ -74,7 +74,7 @@ get_db = get_db_connection
 
 
 
-
+"""
 # database.py
 import asyncpg
 import os
@@ -90,5 +90,33 @@ async def get_db():
     )
     return conn
 
+"""
 
+
+
+
+
+# database.py - Version ultra-simple
+import asyncpg
+import os
+
+async def get_db():
+    """Connexion basique et fiable"""
+    return await asyncpg.connect(
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME'),
+        port=6543
+    )
+
+async def test_connection():
+    """Test simple"""
+    try:
+        conn = await get_db()
+        version = await conn.fetchval("SELECT version()")
+        await conn.close()
+        return {"status": "success", "version": version}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
