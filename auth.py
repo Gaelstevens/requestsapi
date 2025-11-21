@@ -38,23 +38,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 
-
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def _truncate_to_72_bytes(s: str) -> str:
+    """Tronque silencieusement une string à 72 bytes (UTF-8) pour bcrypt."""
+    b = s.encode("utf-8")
+    if len(b) > 72:
+        b = b[:72]
+    return b.decode("utf-8", errors="ignore")
+
 def hash_password(password: str) -> str:
-    """Hasher un mot de passe en le tronquant à 72 bytes si nécessaire"""
-    pw_bytes = password.encode("utf-8")
-    if len(pw_bytes) > 72:
-        pw_bytes = pw_bytes[:72]
-        password = pw_bytes.decode("utf-8", errors="ignore")  # Retirer chars coupés
+    password = _truncate_to_72_bytes(password)  # coupe silencieusement
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    pw_bytes = plain_password.encode("utf-8")
-    if len(pw_bytes) > 72:
-        pw_bytes = pw_bytes[:72]
-        plain_password = pw_bytes.decode("utf-8", errors="ignore")
+    plain_password = _truncate_to_72_bytes(plain_password)
     return pwd_context.verify(plain_password, hashed_password)
-
