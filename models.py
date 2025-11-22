@@ -10,9 +10,8 @@ class UserRegister(BaseModel):
     phone: str
     password: str
 
-  
-    @validator("password")
-    def validate_password(cls, v):
+    @validator('password')
+    def truncate_password_bytes(cls, v):
         from auth import _truncate_to_72_bytes
         return _truncate_to_72_bytes(v)
 
