@@ -48,7 +48,7 @@ def verify_user_cookie(cookie_data: str) -> dict:
 
 
 
-
+"""
 # Dépendance pour vérifier l'utilisateur connecté
 def get_current_user(user_data: str = Cookie(None)):
     if not user_data:
@@ -59,6 +59,22 @@ def get_current_user(user_data: str = Cookie(None)):
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     
     return user
+"""
+
+
+def get_current_user(user_data: str = Cookie(None, alias="user_data")):
+    if not user_data:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    
+    user = verify_user_cookie(user_data)
+    if not user:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    
+    return user
+
+
+
+
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
@@ -293,8 +309,50 @@ async def my_requests(request: Request):
 
 
 
+@app.get("/my-requests", response_class=HTMLResponse)
+async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
+    try:
+        # Récupérer toutes les requêtes de l'utilisateur
+        rows = await fetch_all(
+            """
+            SELECT request_id, all_name, matricule, cycle, level, nom_code_ue,
+                   note_exam, note_cc, note_tp, note_tpe, autre, comment,
+                   just_p, created_at
+            FROM requests
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            """,
+            (current_user["user_id"],)
+        )
+
+        # Afficher la page HTML
+        return templates.TemplateResponse(
+            "my-requests.html",
+            {
+                "request": request,
+                "user": current_user,
+                "requests": rows
+            }
+        )
+    
+    except Exception as e:
+        # Affiche l’erreur sur la page
+        return templates.TemplateResponse(
+            "my-requests.html",
+            {
+                "request": request,
+                "user": current_user,
+                "error": str(e),
+                "requests": []
+            }
+        )
 
 
+
+
+
+
+"""
 
 #####################€###
 @app.get("/my-requests")
@@ -308,12 +366,12 @@ async def my_requests(request: Request):
         if not user_id:
             return {"error": "user_id manquant dans current_user → " + str(current_user)}
 
-        query = """
+        query = """"""
             SELECT *
             FROM requests
             WHERE user_id = ?
             ORDER BY created_at DESC
-        """
+        """"""
 
         rows = await fetch_all(query, (user_id,))
 
@@ -322,7 +380,7 @@ async def my_requests(request: Request):
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
 
-
+"""
 
 @app.get("/logout")
 async def logout():
