@@ -255,7 +255,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
 
     except Exception as e:
         return {"error": str(e)}
-"""
+
 
 
 
@@ -289,12 +289,35 @@ async def my_requests(request: Request):
 
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
+"""
 
 
 
 
+@app.get("/my-requests")
+async def my_requests(request: Request):
+    try:
+        current_user = get_current_user(request)
+        if current_user is None:
+            return {"error": "Utilisateur non authentifié"}
 
+        user_id = current_user.get("user_id")
+        if not user_id:
+            return {"error": "user_id manquant dans current_user → " + str(current_user)}
 
+        query = """
+            SELECT *
+            FROM requests
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        """
+
+        rows = await fetch_all(query, (user_id,))
+
+        return {"status": "ok", "requests": rows}
+
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 
 
