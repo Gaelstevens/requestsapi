@@ -213,6 +213,9 @@ async def submit_request(request: Request, current_user: dict = Depends(get_curr
             "error": str(e)
         })
 
+
+
+"""
 @app.get("/my-requests", response_class=HTMLResponse)
 async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
     requests = await fetch_all(
@@ -225,6 +228,34 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
         "user": current_user,
         "requests": requests
     })
+"""
+
+
+
+
+
+@app.get("/my-requests", response_class=HTMLResponse)
+async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
+    try:
+        requests = await fetch_all(
+            "SELECT request_id, all_name, matricule, cycle, level, nom_code_ue, note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p, created_at FROM requests WHERE user_id = ? ORDER BY created_at DESC",
+            (current_user['user_id'],)
+        )
+
+        return templates.TemplateResponse("my-requests.html", {
+            "request": request,
+            "user": current_user,
+            "requests": requests
+        })
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+
+
+
+
 
 @app.get("/logout")
 async def logout():
