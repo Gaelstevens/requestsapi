@@ -257,3 +257,10 @@ async def db_status():
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+
+@app.get("/debug-requests-columns")
+async def debug_columns():
+    rows = await fetch_all("PRAGMA table_info(requests)")
+    return rows
