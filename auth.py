@@ -36,14 +36,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 """
 
 
-
+"""
 
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def _truncate_to_72_bytes(s: str) -> str:
-    """Tronque silencieusement une string à 72 bytes (UTF-8) pour bcrypt."""
+    """"""Tronque silencieusement une string à 72 bytes (UTF-8) pour bcrypt.""""""
     b = s.encode("utf-8")
     if len(b) > 72:
         b = b[:72]
@@ -55,4 +55,20 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     plain_password = _truncate_to_72_bytes(plain_password)
+    return pwd_context.verify(plain_password, hashed_password)"""
+
+from passlib.context import CryptContext
+
+# Utilise argon2 au lieu de bcrypt (stable sur Vercel)
+pwd_context = CryptContext(
+    schemes=["argon2"],
+    deprecated="auto"
+)
+
+def hash_password(password: str) -> str:
+    """Hash sécurisé avec Argon2 (pas de limite 72 bytes, compatible Vercel)."""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Vérifie un mot de passe via Argon2."""
     return pwd_context.verify(plain_password, hashed_password)
