@@ -327,7 +327,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
 
         # Afficher la page HTML
         return templates.TemplateResponse(
-            "my-requests.html",
+            "my_requests.html",
             {
                 "request": request,
                 "user": current_user,
@@ -338,7 +338,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
     except Exception as e:
         # Affiche l’erreur sur la page
         return templates.TemplateResponse(
-            "my-requests.html",
+            "my_requests.html",
             {
                 "request": request,
                 "user": current_user,
