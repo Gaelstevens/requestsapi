@@ -10,12 +10,8 @@ class UserRegister(BaseModel):
     phone: str
     password: str
 
-    @validator('password')
-    def truncate_password_bytes(cls, v):
-        from auth import _truncate_to_72_bytes
-        return _truncate_to_72_bytes(v)
-
- 
+    # ⚠️ Plus besoin de troncature — argon2 n'a aucune limite de taille
+    # Donc suppression complète du validator password
 
     @validator('matricule')
     def validate_matricule(cls, v):
@@ -39,9 +35,11 @@ class UserRegister(BaseModel):
             raise ValueError('Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes')
         return v
 
+
 class UserLogin(BaseModel):
     login: str
     password: str
+
 
 class RequestSubmit(BaseModel):
     all_name: str
