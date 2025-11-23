@@ -296,54 +296,7 @@ async def my_requests(request: Request):
 
 
 
-
-
-@app.get("/my-requests", response_class=HTMLResponse)
-async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
-    try:
-        # Vérifier l'authentification
-        if current_user is None:
-            from fastapi.responses import RedirectResponse
-            return RedirectResponse(url="/login")
-        
-        user_id = current_user.get("user_id")
-        if not user_id:
-            return templates.TemplateResponse("error.html", {
-                "request": request, 
-                "error": "Erreur d'authentification: user_id manquant"
-            })
-
-        # Récupérer les requêtes depuis la base
-        query = """
-            SELECT *
-            FROM requests
-            WHERE user_id = ?
-            ORDER BY created_at DESC
-        """
-        rows = await fetch_all(query, (user_id,))
-
-        # 🔥 IMPORTANT: Retourner le template HTML, pas du JSON
-        return templates.TemplateResponse("mes_requetes.html", {
-            "request": request,
-            "requests": rows
-        })
-
-    except Exception as e:
-        # 🔥 IMPORTANT: Retourner une page d'erreur HTML, pas du JSON
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": f"Erreur: {str(e)}"
-        })
-
-
-
-
-
-
-
-
-"""
-
+#####################€###
 @app.get("/my-requests")
 async def my_requests(request: Request):
     try:
@@ -355,12 +308,12 @@ async def my_requests(request: Request):
         if not user_id:
             return {"error": "user_id manquant dans current_user → " + str(current_user)}
 
-        query = """"""
+        query = """
             SELECT *
             FROM requests
             WHERE user_id = ?
             ORDER BY created_at DESC
-        """"""
+        """
 
         rows = await fetch_all(query, (user_id,))
 
@@ -369,8 +322,7 @@ async def my_requests(request: Request):
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
 
-#
-"""
+
 
 @app.get("/logout")
 async def logout():
