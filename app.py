@@ -48,27 +48,6 @@ def verify_user_cookie(cookie_data: str) -> dict:
 
 
 
-#
-
-
-
-async def get_current_user_from_request(request: Request):
-    """Récupère l'utilisateur à partir de la requête"""
-    user_data = request.cookies.get("user_data")
-    if not user_data:
-        return None
-    
-    return verify_user_cookie(user_data)
-
-
-
-
-
-#
-
-
-
-
 
 # Dépendance pour vérifier l'utilisateur connecté
 def get_current_user(user_data: str = Cookie(None)):
@@ -284,7 +263,7 @@ async def my_requests(request: Request, current_user: dict = Depends(get_current
 
 
 
-"""
+
 
 @app.get("/my-requests")
 async def my_requests(request: Request):
@@ -297,12 +276,12 @@ async def my_requests(request: Request):
         if not user_id:
             return {"error": "user_id manquant dans current_user → " + str(current_user)}
 
-        query = """"""
+        query = """
             SELECT *
             FROM requests
             WHERE user_id = ?
             ORDER BY created_at DESC
-        """"""
+        """
 
         rows = await fetch_all(query, (user_id,))
 
@@ -314,32 +293,7 @@ async def my_requests(request: Request):
 
 
 
-#
 
-
-
-@app.get("/my-requests", response_class=HTMLResponse)
-async def my_requests(request: Request, current_user: dict = Depends(get_current_user)):
-    try:
-        # Récupérer les requêtes de l'utilisateur
-        requests = await fetch_all(
-            "SELECT request_id, all_name, matricule, cycle, level, nom_code_ue, note_exam, note_cc, note_tp, note_tpe, autre, comment, just_p, state, created_at FROM requests WHERE user_id = ? ORDER BY created_at DESC",
-            (current_user['user_id'],)
-        )
-
-        return templates.TemplateResponse("my-requests.html", {
-            "request": request,
-            "user": current_user,
-            "requests": requests
-        })
-
-    except Exception as e:
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": f"Erreur lors du chargement des requêtes: {str(e)}"
-        })
-
-#
 
 
 
