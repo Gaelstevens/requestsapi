@@ -276,12 +276,12 @@ async def my_requests(request: Request):
         if not user_id:
             return {"error": "user_id manquant dans current_user → " + str(current_user)}
 
-        query = """
+        query = """"""
             SELECT *
             FROM requests
             WHERE user_id = ?
             ORDER BY created_at DESC
-        """
+        """"""
 
         rows = await fetch_all(query, (user_id,))
 
